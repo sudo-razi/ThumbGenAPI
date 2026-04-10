@@ -9,3 +9,6 @@ api_test.py
 girl.png
 tests/
 .pytest_cache
+api_test
+api.md
+

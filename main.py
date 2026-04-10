@@ -1,9 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Security
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Security, Query
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.responses import Response
 from PIL import Image, ImageOps
 import io
 import os
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -109,6 +110,41 @@ async def generate_profile_thumbnail(file: UploadFile = File(...)):
     thumbnail_bytes = process_image(content, mode="profile")
     
     headers = {"Content-Disposition": f"attachment; filename=\"{file.filename}\""}
+    return Response(content=thumbnail_bytes, media_type="image/jpeg", headers=headers)
+
+async def fetch_image_from_url(url: str) -> bytes:
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, timeout=30.0)
+            response.raise_for_status()
+            return response.content
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Failed to fetch image from URL: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error fetching image from URL: {str(e)}")
+
+@app.post("/generate_thumbnail_url", dependencies=[Depends(get_api_key)])
+async def generate_thumbnail_url(image_url: str = Query(...)):
+    content = await fetch_image_from_url(image_url)
+    thumbnail_bytes = process_image(content, mode="standard")
+    
+    filename = image_url.split("/")[-1].split("?")[0] or "thumbnail.jpg"
+    if "." not in filename:
+        filename += ".jpg"
+        
+    headers = {"Content-Disposition": f"attachment; filename=\"{filename}\""}
+    return Response(content=thumbnail_bytes, media_type="image/jpeg", headers=headers)
+
+@app.post("/generate_profile_thumbnail_url", dependencies=[Depends(get_api_key)])
+async def generate_profile_thumbnail_url(image_url: str = Query(...)):
+    content = await fetch_image_from_url(image_url)
+    thumbnail_bytes = process_image(content, mode="profile")
+    
+    filename = image_url.split("/")[-1].split("?")[0] or "profile.jpg"
+    if "." not in filename:
+        filename += ".jpg"
+        
+    headers = {"Content-Disposition": f"attachment; filename=\"{filename}\""}
     return Response(content=thumbnail_bytes, media_type="image/jpeg", headers=headers)
 
 if __name__ == "__main__":
