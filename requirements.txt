@@ -1,6 +1,6 @@
-fastapi
-uvicorn
-pillow
-python-dotenv
-python-multipart
-httpx
+fastapi==0.115.12
+uvicorn==0.34.0
+Pillow==11.2.1
+httpx==0.28.1
+python-multipart==0.0.20
+mangum==0.19.0
